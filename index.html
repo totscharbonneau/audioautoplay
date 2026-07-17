@@ -17,6 +17,18 @@
   .card {
     text-align: center;
     color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+  canvas {
+    display: block;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  canvas.active {
+    opacity: 1;
   }
   button {
     font-size: 1.2rem;
@@ -28,15 +40,18 @@
     cursor: pointer;
   }
   p {
-    opacity: 0.7;
-    margin-top: 1rem;
+    opacity: 0.5;
+    margin: 0;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
   }
 </style>
 </head>
 <body>
   <div class="card">
-    <p id="status">Tap to play</p>
-    <button id="playBtn">▶ Play</button>
+    <canvas id="viz" width="280" height="64"></canvas>
+    <button id="playBtn">&#9654; Play</button>
+    <p id="status">tap to play</p>
     <audio id="audio" src="audio.mp3" preload="auto"></audio>
   </div>
 
@@ -44,24 +59,82 @@
   const audio = document.getElementById('audio');
   const btn = document.getElementById('playBtn');
   const status = document.getElementById('status');
+  const canvas = document.getElementById('viz');
+  const ctx = canvas.getContext('2d');
+
+  let audioCtx, analyser, dataArray, rafId;
+
+  function initAudio() {
+    if (analyser) return;
+    audioCtx = new AudioContext();
+    const source = audioCtx.createMediaElementSource(audio);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.75;
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+  }
+
+  function draw() {
+    rafId = requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(dataArray);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const barCount = 40;
+    const barW = 3;
+    const totalGap = canvas.width - barCount * barW;
+    const gap = totalGap / (barCount - 1);
+    const step = Math.floor(dataArray.length / barCount);
+
+    for (let i = 0; i < barCount; i++) {
+      const value = dataArray[i * step] / 255;
+      const barH = Math.max(2, value * canvas.height);
+      const x = i * (barW + gap);
+      const y = (canvas.height - barH) / 2;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + value * 0.7})`;
+      ctx.fillRect(x, y, barW, barH);
+    }
+  }
+
+  function startViz() {
+    try {
+      initAudio();
+      audioCtx.resume();
+      canvas.classList.add('active');
+      cancelAnimationFrame(rafId);
+      draw();
+    } catch (e) {
+      // visualizer unavailable (e.g. file:// restriction), audio still plays
+    }
+  }
+
+  function stopViz() {
+    cancelAnimationFrame(rafId);
+    canvas.classList.remove('active');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 
   function tryAutoplay() {
     audio.play().then(() => {
-      status.textContent = 'Playing...';
+      startViz();
+      status.textContent = 'playing';
       btn.style.display = 'none';
-    }).catch(() => {
-      // Autoplay blocked, wait for user tap
-    });
+    }).catch(() => {});
   }
 
   btn.addEventListener('click', () => {
     audio.play();
-    status.textContent = 'Playing...';
+    startViz();
+    status.textContent = 'playing';
     btn.style.display = 'none';
   });
 
   audio.addEventListener('ended', () => {
-    status.textContent = 'Done. Tap to play again';
+    stopViz();
+    status.textContent = 'tap to play again';
+    btn.textContent = '▶ Play again';
     btn.style.display = 'inline-block';
   });
 
