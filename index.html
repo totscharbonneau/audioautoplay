@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Play Audio</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    font-family: system-ui, sans-serif;
+  }
+  .card {
+    text-align: center;
+    color: #eee;
+  }
+  button {
+    font-size: 1.2rem;
+    padding: 0.8rem 1.6rem;
+    border-radius: 999px;
+    border: none;
+    background: #fff;
+    color: #111;
+    cursor: pointer;
+  }
+  p {
+    opacity: 0.7;
+    margin-top: 1rem;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p id="status">Tap to play</p>
+    <button id="playBtn">▶ Play</button>
+    <audio id="audio" src="audio.mp3" preload="auto"></audio>
+  </div>
+
+<script>
+  const audio = document.getElementById('audio');
+  const btn = document.getElementById('playBtn');
+  const status = document.getElementById('status');
+
+  function tryAutoplay() {
+    audio.play().then(() => {
+      status.textContent = 'Playing...';
+      btn.style.display = 'none';
+    }).catch(() => {
+      // Autoplay blocked, wait for user tap
+    });
+  }
+
+  btn.addEventListener('click', () => {
+    audio.play();
+    status.textContent = 'Playing...';
+    btn.style.display = 'none';
+  });
+
+  audio.addEventListener('ended', () => {
+    status.textContent = 'Done. Tap to play again';
+    btn.style.display = 'inline-block';
+  });
+
+  window.addEventListener('load', tryAutoplay);
+</script>
+</body>
+</html>
